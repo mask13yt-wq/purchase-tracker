@@ -2,187 +2,202 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>采购待办</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
-      font-family: -apple-system, sans-serif; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
       background: #f0f2f5; 
       min-height: 100vh;
+      padding-bottom: 80px;
     }
     
-    .header {
-      background: linear-gradient(135deg, #4285f4, #34a853);
-      color: white;
-      padding: 20px;
+    .header { 
+      background: linear-gradient(135deg, #4285f4, #34a853); 
+      color: white; 
+      padding: 25px 20px; 
+      text-align: center;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-    .header h1 { font-size: 20px; }
+    .header h1 { font-size: 22px; font-weight: 600; }
+    .header p { font-size: 12px; opacity: 0.9; margin-top: 5px; }
     
-    .stats {
-      display: flex;
-      justify-content: space-around;
-      padding: 15px;
-      background: white;
-      margin: 10px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    .stats { 
+      display: flex; 
+      justify-content: space-around; 
+      padding: 20px 15px; 
+      background: white; 
+      margin: 12px; 
+      border-radius: 16px; 
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
     }
-    .stat { text-align: center; }
-    .stat-num { 
-      font-size: 28px; 
-      font-weight: bold; 
-      color: #4285f4; 
-    }
-    .stat-label { font-size: 12px; color: #666; }
+    .stat { text-align: center; flex: 1; }
+    .stat-num { font-size: 32px; font-weight: 700; color: #4285f4; }
+    .stat-num.warning { color: #fbbc04; }
+    .stat-num.success { color: #34a853; }
+    .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
     
-    .tabs {
-      display: flex;
-      padding: 10px;
-      gap: 10px;
+    .tabs { 
+      display: flex; 
+      padding: 8px 12px; 
+      gap: 8px; 
+      position: sticky;
+      top: 76px;
+      background: #f0f2f5;
+      z-index: 99;
     }
-    .tab {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 20px;
-      background: white;
-      cursor: pointer;
+    .tab { 
+      flex: 1; 
+      padding: 12px 8px; 
+      border: none; 
+      border-radius: 25px; 
+      background: white; 
+      cursor: pointer; 
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      transition: all 0.2s;
     }
     .tab.active { background: #4285f4; color: white; }
+    .tab:active { transform: scale(0.96); }
     
-    .list { padding: 0 10px 100px; }
+    .list { padding: 5px 12px; }
     
-    .item {
-      background: white;
-      margin: 10px 0;
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .item-checkbox {
-      width: 24px;
-      height: 24px;
-      border: 2px solid #4285f4;
-      border-radius: 50%;
+    .item { 
+      background: white; 
+      margin: 10px 0; 
+      padding: 16px; 
+      border-radius: 16px; 
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06); 
+      display: flex; 
+      align-items: center; 
+      gap: 14px;
+      transition: all 0.2s;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
-    .item-checkbox.checked {
-      background: #34a853;
-      border-color: #34a853;
-      color: white;
-    }
+    .item:active { transform: scale(0.98); background: #f8f9fa; }
     
-    .item-content { flex: 1; }
-    .item-name { font-weight: 600; font-size: 16px; }
+    .checkbox { 
+      width: 32px; 
+      height: 32px; 
+      border: 2.5px solid #e0e0e0; 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-size: 16px; 
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .checkbox.pending { border-color: #fbbc04; background: #fffde7; }
+    .checkbox.processing { border-color: #4285f4; background: #e3f2fd; color: #4285f4; }
+    .checkbox.done { border-color: #34a853; background: #34a853; color: white; }
+    
+    .item-content { flex: 1; min-width: 0; }
+    .item-name { 
+      font-weight: 600; 
+      font-size: 16px; 
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
     .item-detail { 
       font-size: 13px; 
-      color: #666; 
+      color: #888; 
       margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .item.done .item-name { color: #999; text-decoration: line-through; }
+    
+    .item-qty { 
+      background: #e8f0fe; 
+      color: #4285f4; 
+      padding: 8px 14px; 
+      border-radius: 20px; 
+      font-weight: 600; 
+      font-size: 14px; 
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .item.done .item-qty { background: #f5f5f5; color: #999; }
+    
+    .empty { 
+      text-align: center; 
+      padding: 60px 20px; 
+      color: #999; 
+    }
+    .empty-icon { font-size: 60px; margin-bottom: 15px; }
+    .empty p { font-size: 15px; }
+    
+    .refresh-btn { 
+      position: fixed; 
+      bottom: 25px; 
+      right: 20px; 
+      width: 60px; 
+      height: 60px; 
+      border-radius: 50%; 
+      background: #4285f4; 
+      color: white; 
+      border: none; 
+      font-size: 26px; 
+      box-shadow: 0 4px 20px rgba(66,133,244,0.4); 
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 100;
+    }
+    .refresh-btn:active { transform: scale(0.9); }
+    .refresh-btn.loading { animation: spin 1s linear infinite; }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
     
-    .item-qty {
-      background: #e8f0fe;
-      color: #4285f4;
-      padding: 4px 10px;
-      border-radius: 15px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    
-    .status-btn {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 15px;
+    .status-hint {
+      text-align: center;
+      padding: 10px;
       font-size: 12px;
-      cursor: pointer;
-    }
-    .status-pending { background: #fff3cd; color: #856404; }
-    .status-processing { background: #cce5ff; color: #004085; }
-    .status-done { background: #d4edda; color: #155724; }
-    
-    .config-btn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: #4285f4;
-      color: white;
-      border: none;
-      font-size: 20px;
-      box-shadow: 0 4px 15px rgba(66,133,244,0.4);
-      cursor: pointer;
+      color: #999;
     }
     
-    .modal {
-      display: none;
+    .loading-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(255,255,255,0.9);
+      display: flex;
       align-items: center;
       justify-content: center;
       z-index: 200;
     }
-    .modal.show { display: flex; }
-    .modal-content {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 400px;
+    .loading-overlay.hidden { display: none; }
+    .loading-spinner {
+      font-size: 40px;
+      animation: spin 1s linear infinite;
     }
-    .modal input {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-    }
-    .modal button {
-      width: 100%;
-      padding: 12px;
-      background: #4285f4;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #666;
-    }
-    
-    .empty {
-      text-align: center;
-      padding: 60px 20px;
-      color: #999;
-    }
-    .empty-icon { font-size: 60px; }
   </style>
 </head>
 <body>
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">🔄</div>
+  </div>
+
   <div class="header">
     <h1>📦 采购待办清单</h1>
+    <p>点击项目切换状态</p>
   </div>
   
   <div class="stats">
     <div class="stat">
-      <div class="stat-num" id="statPending">-</div>
+      <div class="stat-num warning" id="statPending">-</div>
       <div class="stat-label">待采购</div>
     </div>
     <div class="stat">
@@ -190,7 +205,7 @@
       <div class="stat-label">采购中</div>
     </div>
     <div class="stat">
-      <div class="stat-num" id="statDone">-</div>
+      <div class="stat-num success" id="statDone">-</div>
       <div class="stat-label">已完成</div>
     </div>
   </div>
@@ -201,49 +216,19 @@
     <button class="tab" data-filter="all">全部</button>
   </div>
   
-  <div class="list" id="list">
-    <div class="loading">加载中...</div>
-  </div>
+  <div class="status-hint">💡 点击项目切换: 待采购 → 采购中 → 已完成</div>
   
-  <button class="config-btn" onclick="showConfig()">⚙️</button>
+  <div class="list" id="list"></div>
   
-  <div class="modal" id="configModal">
-    <div class="modal-content">
-      <h3>设置</h3>
-      <input type="text" id="configUrl" placeholder="Google Apps Script URL">
-      <button onclick="saveConfig()">保存并刷新</button>
-    </div>
-  </div>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadData()">🔄</button>
 
 <script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyUEwUgUKwtSnb5IxXzw8TFF0iId_CW262Cigj84m4eSBXWkF8Y4Cc93aSR4J8Ozk_BRA/exec';
+
 let allItems = [];
 let currentFilter = 'pending';
 
-// 获取保存的URL
-function getApiUrl() {
-  return localStorage.getItem('purchaseApiUrl') || '';
-}
-
-function showConfig() {
-  document.getElementById('configUrl').value = getApiUrl();
-  document.getElementById('configModal').classList.add('show');
-}
-
-function saveConfig() {
-  const url = document.getElementById('configUrl').value.trim();
-  localStorage.setItem('purchaseApiUrl', url);
-  document.getElementById('configModal').classList.remove('show');
-  loadData();
-}
-
-// 点击空白关闭弹窗
-document.getElementById('configModal').addEventListener('click', (e) => {
-  if (e.target.id === 'configModal') {
-    document.getElementById('configModal').classList.remove('show');
-  }
-});
-
-// Tab切换
+// Tab 切换
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -255,40 +240,30 @@ document.querySelectorAll('.tab').forEach(tab => {
 
 // 加载数据
 async function loadData() {
-  const apiUrl = getApiUrl();
-  if (!apiUrl) {
-    document.getElementById('list').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">⚙️</div>
-        <p>请先点击右下角设置 API URL</p>
-      </div>
-    `;
-    return;
-  }
+  const refreshBtn = document.getElementById('refreshBtn');
+  const loadingOverlay = document.getElementById('loadingOverlay');
   
-  document.getElementById('list').innerHTML = '<div class="loading">加载中...</div>';
+  refreshBtn.classList.add('loading');
   
   try {
-    const response = await fetch(`${apiUrl}?action=list`);
+    const response = await fetch(`${API_URL}?action=list`);
     const result = await response.json();
     
     if (result.success) {
-      allItems = result.items;
-      
-      // 更新统计
-      document.getElementById('statPending').textContent = result.stats.pending;
-      document.getElementById('statProcessing').textContent = result.stats.processing;
-      document.getElementById('statDone').textContent = result.stats.done;
-      
+      allItems = result.items || [];
+      document.getElementById('statPending').textContent = result.stats?.pending || 0;
+      document.getElementById('statProcessing').textContent = result.stats?.processing || 0;
+      document.getElementById('statDone').textContent = result.stats?.done || 0;
       renderList();
+    } else {
+      showEmpty('加载失败', '❌');
     }
   } catch (error) {
-    document.getElementById('list').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">❌</div>
-        <p>加载失败，请检查网络和URL设置</p>
-      </div>
-    `;
+    console.error(error);
+    showEmpty('网络错误，请重试', '📡');
+  } finally {
+    refreshBtn.classList.remove('loading');
+    loadingOverlay.classList.add('hidden');
   }
 }
 
@@ -302,51 +277,81 @@ function renderList() {
     items = allItems.filter(i => i.status === '采购中');
   }
   
-  if (items.length === 0) {
-    document.getElementById('list').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">✨</div>
-        <p>暂无数据</p>
-      </div>
-    `;
+  if (!items.length) {
+    const messages = {
+      'pending': '没有待采购的项目 🎉',
+      'processing': '没有采购中的项目',
+      'all': '还没有任何采购项目'
+    };
+    showEmpty(messages[currentFilter], '📋');
     return;
   }
   
-  document.getElementById('list').innerHTML = items.map(item => `
-    <div class="item">
-      <div class="item-checkbox ${item.status === '已完成' ? 'checked' : ''}" 
-           onclick="cycleStatus('${item.id}', '${item.status}')">
-        ${item.status === '已完成' ? '✓' : ''}
+  document.getElementById('list').innerHTML = items.map(item => {
+    const statusClass = item.status === '已完成' ? 'done' : item.status === '采购中' ? 'processing' : 'pending';
+    const icon = item.status === '已完成' ? '✓' : item.status === '采购中' ? '➜' : '';
+    const itemClass = item.status === '已完成' ? 'item done' : 'item';
+    
+    return `
+      <div class="${itemClass}" onclick="cycleStatus('${item.id}', '${item.status}')">
+        <div class="checkbox ${statusClass}">${icon}</div>
+        <div class="item-content">
+          <div class="item-name">${item.name || '-'}</div>
+          <div class="item-detail">${item.spec || '无规格'}</div>
+        </div>
+        <div class="item-qty">${item.quantity || 0} ${item.unit || ''}</div>
       </div>
-      <div class="item-content">
-        <div class="item-name">${item.name}</div>
-        <div class="item-detail">${item.spec}</div>
-      </div>
-      <div class="item-qty">${item.quantity} ${item.unit}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-// 循环切换状态
+function showEmpty(message, icon) {
+  document.getElementById('list').innerHTML = `
+    <div class="empty">
+      <div class="empty-icon">${icon}</div>
+      <p>${message}</p>
+    </div>
+  `;
+}
+
+// 切换状态
 async function cycleStatus(id, currentStatus) {
-  const statusFlow = {
-    '待采购': '采购中',
-    '采购中': '已完成',
-    '已完成': '待采购'
+  const statusFlow = { 
+    '待采购': '采购中', 
+    '采购中': '已完成', 
+    '已完成': '待采购' 
   };
-  const newStatus = statusFlow[currentStatus];
+  const newStatus = statusFlow[currentStatus] || '待采购';
   
-  const apiUrl = getApiUrl();
-  try {
-    await fetch(`${apiUrl}?action=update&id=${id}&status=${encodeURIComponent(newStatus)}`);
-    loadData(); // 刷新
-  } catch (error) {
-    alert('更新失败');
+  // 先本地更新（快速响应）
+  const item = allItems.find(i => String(i.id) === String(id));
+  if (item) {
+    item.status = newStatus;
+    updateStats();
+    renderList();
   }
+  
+  // 再同步到服务器
+  try {
+    await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}`);
+  } catch (error) {
+    console.error('更新失败:', error);
+    // 失败时重新加载
+    loadData();
+  }
+}
+
+function updateStats() {
+  document.getElementById('statPending').textContent = allItems.filter(i => i.status === '待采购').length;
+  document.getElementById('statProcessing').textContent = allItems.filter(i => i.status === '采购中').length;
+  document.getElementById('statDone').textContent = allItems.filter(i => i.status === '已完成').length;
 }
 
 // 初始加载
 loadData();
+
+// 每60秒自动刷新
+setInterval(loadData, 60000);
 </script>
 </body>
 </html>
