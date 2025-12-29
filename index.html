@@ -78,10 +78,7 @@
       display: flex; 
       align-items: center; 
       gap: 14px;
-      transition: all 0.2s;
-      cursor: pointer;
     }
-    .item:active { transform: scale(0.98); background: #f8f9fa; }
     
     .checkbox { 
       width: 32px; 
@@ -94,7 +91,9 @@
       font-size: 16px; 
       flex-shrink: 0;
       transition: all 0.2s;
+      cursor: pointer;
     }
+    .checkbox:active { transform: scale(0.9); }
     .checkbox.pending { border-color: #ea4335; background: #fff; }
     .checkbox.done { border-color: #34a853; background: #34a853; color: white; }
     
@@ -103,31 +102,67 @@
       font-weight: 600; 
       font-size: 16px; 
       color: #333;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-    .item-detail { 
-      font-size: 13px; 
-      color: #888; 
-      margin-top: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .item-spec {
+      font-size: 13px;
+      color: #888;
+      font-weight: 400;
     }
     .item.done .item-name { color: #999; text-decoration: line-through; }
     
-    .item-qty { 
-      background: #e8f0fe; 
-      color: #4285f4; 
-      padding: 8px 14px; 
-      border-radius: 20px; 
-      font-weight: 600; 
-      font-size: 14px; 
-      white-space: nowrap;
+    .item-qty-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       flex-shrink: 0;
     }
-    .item.done .item-qty { background: #f5f5f5; color: #999; }
+    
+    .item-purchased {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 6px 12px;
+      border-radius: 15px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .item-purchased:active { transform: scale(0.95); background: #c8e6c9; }
+    
+    .item-total { 
+      background: #e8f0fe; 
+      color: #4285f4; 
+      padding: 6px 12px; 
+      border-radius: 15px; 
+      font-weight: 600; 
+      font-size: 13px; 
+      white-space: nowrap;
+    }
+    .item.done .item-total { background: #f5f5f5; color: #999; }
+    
+    .item-progress {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+    }
+    .progress-bar {
+      height: 4px;
+      background: #e0e0e0;
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #34a853;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
     
     .empty { 
       text-align: center; 
@@ -175,6 +210,63 @@
       font-size: 40px;
       animation: spin 1s linear infinite;
     }
+    
+    /* 弹窗样式 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      width: 85%;
+      max-width: 320px;
+      text-align: center;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .modal-subtitle {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 24px;
+      text-align: center;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      outline: none;
+    }
+    .modal-input:focus { border-color: #4285f4; }
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+    }
+    .modal-btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .modal-btn.cancel { background: #f0f0f0; color: #666; }
+    .modal-btn.confirm { background: #4285f4; color: white; }
+    .modal-btn:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
@@ -184,7 +276,7 @@
 
   <div class="header">
     <h1>📦 采购待办清单</h1>
-    <p>点击打勾表示已采购</p>
+    <p>点击圆圈打勾完成 · 点击数量编辑已采购</p>
   </div>
   
   <div class="stats">
@@ -208,11 +300,25 @@
   
   <button class="refresh-btn" id="refreshBtn" onclick="loadData()">🔄</button>
 
+  <!-- 编辑已采购数量弹窗 -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">编辑已采购数量</div>
+      <div class="modal-subtitle" id="modalSubtitle">需采购: 10 个</div>
+      <input type="number" class="modal-input" id="modalInput" min="0" placeholder="0">
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" onclick="closeModal()">取消</button>
+        <button class="modal-btn confirm" onclick="confirmEdit()">确认</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbyUEwUgUKwtSnb5IxXzw8TFF0iId_CW262Cigj84m4eSBXWkF8Y4Cc93aSR4J8Ozk_BRA/exec';
 
 let allItems = [];
 let currentFilter = 'pending';
+let editingItem = null;
 
 // Tab 切换
 document.querySelectorAll('.tab').forEach(tab => {
@@ -236,7 +342,10 @@ async function loadData() {
     const result = await response.json();
     
     if (result.success) {
-      allItems = result.items || [];
+      allItems = (result.items || []).map(item => ({
+        ...item,
+        purchased: item.purchased || 0  // 已采购数量，默认0
+      }));
       updateStats();
       renderList();
     } else {
@@ -283,15 +392,37 @@ function renderList() {
     const statusClass = isDone ? 'done' : 'pending';
     const itemClass = isDone ? 'item done' : 'item';
     const icon = isDone ? '✓' : '';
+    const purchased = parseInt(item.purchased) || 0;
+    const total = parseInt(item.quantity) || 0;
+    const progressPercent = total > 0 ? Math.min((purchased / total) * 100, 100) : 0;
+    
+    // 进度条（只在未完成且有已采购数量时显示）
+    let progressHtml = '';
+    if (!isDone && purchased > 0 && total > 0) {
+      progressHtml = `
+        <div class="item-progress">
+          已采购 ${purchased}/${total} ${item.unit || ''}
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+          </div>
+        </div>
+      `;
+    }
     
     return `
-      <div class="${itemClass}" onclick="toggleStatus('${item.id}', ${isDone})">
-        <div class="checkbox ${statusClass}">${icon}</div>
+      <div class="${itemClass}">
+        <div class="checkbox ${statusClass}" onclick="toggleStatus('${item.id}', ${isDone})">${icon}</div>
         <div class="item-content">
-          <div class="item-name">${item.name || '-'}</div>
-          <div class="item-detail">${item.spec || '无规格'}</div>
+          <div class="item-name">
+            ${item.name || '-'}
+            <span class="item-spec">${item.spec || ''}</span>
+          </div>
+          ${progressHtml}
         </div>
-        <div class="item-qty">${item.quantity || 0} ${item.unit || ''}</div>
+        <div class="item-qty-section">
+          ${!isDone ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? '已采' + purchased : '+采购'}</button>` : ''}
+          <div class="item-total">${total} ${item.unit || ''}</div>
+        </div>
       </div>
     `;
   }).join('');
@@ -306,24 +437,84 @@ function showEmpty(message, icon) {
   `;
 }
 
-// 切换状态：待采购 ↔ 已采购
+// 切换状态：待采购 ↔ 已采购（只点击打勾区域）
 async function toggleStatus(id, currentlyDone) {
   const newStatus = currentlyDone ? '待采购' : '已完成';
   
-  // 先本地更新（快速响应）
+  // 先本地更新
   const item = allItems.find(i => String(i.id) === String(id));
   if (item) {
     item.status = newStatus;
+    // 如果标记为完成，已采购数量设为总数量
+    if (newStatus === '已完成') {
+      item.purchased = item.quantity;
+    }
     updateStats();
     renderList();
   }
   
-  // 再同步到服务器
+  // 同步到服务器
   try {
-    await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}`);
+    await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}&purchased=${item.purchased || 0}`);
   } catch (error) {
     console.error('更新失败:', error);
     loadData();
+  }
+}
+
+// 打开编辑弹窗
+function openEditModal(id) {
+  editingItem = allItems.find(i => String(i.id) === String(id));
+  if (!editingItem) return;
+  
+  document.getElementById('modalTitle').textContent = editingItem.name;
+  document.getElementById('modalSubtitle').textContent = `需采购: ${editingItem.quantity} ${editingItem.unit || ''}`;
+  document.getElementById('modalInput').value = editingItem.purchased || 0;
+  document.getElementById('modalInput').max = editingItem.quantity;
+  document.getElementById('editModal').classList.add('show');
+  
+  // 聚焦并选中输入框
+  setTimeout(() => {
+    const input = document.getElementById('modalInput');
+    input.focus();
+    input.select();
+  }, 100);
+}
+
+// 关闭弹窗
+function closeModal() {
+  document.getElementById('editModal').classList.remove('show');
+  editingItem = null;
+}
+
+// 点击弹窗外部关闭
+document.getElementById('editModal').addEventListener('click', (e) => {
+  if (e.target.id === 'editModal') closeModal();
+});
+
+// 确认编辑
+async function confirmEdit() {
+  if (!editingItem) return;
+  
+  const input = document.getElementById('modalInput');
+  let purchased = parseInt(input.value) || 0;
+  const total = parseInt(editingItem.quantity) || 0;
+  
+  // 限制范围
+  if (purchased < 0) purchased = 0;
+  if (purchased > total) purchased = total;
+  
+  // 更新本地数据
+  editingItem.purchased = purchased;
+  
+  closeModal();
+  renderList();
+  
+  // 同步到服务器
+  try {
+    await fetch(`${API_URL}?action=update&id=${encodeURIComponent(editingItem.id)}&purchased=${purchased}`);
+  } catch (error) {
+    console.error('更新失败:', error);
   }
 }
 
