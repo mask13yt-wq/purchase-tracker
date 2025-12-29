@@ -30,6 +30,7 @@
     .stat-num { font-size: 22px; font-weight: 700; }
     .stat-num.pending { color: #ea4335; }
     .stat-num.done { color: #34a853; }
+    .stat-num.need-form { color: #ff9800; }
     .stat-label { font-size: 11px; color: #888; }
     
     .tabs { 
@@ -53,6 +54,7 @@
       color: #666;
     }
     .tab.active { background: #4285f4; color: white; }
+    .tab.need-form.active { background: #ff9800; }
     
     .list { padding: 0 10px; }
     
@@ -114,7 +116,7 @@
       flex-wrap: wrap;
       gap: 4px;
     }
-    .item-spec { color: #999; }
+    .item-spec { color: #999; margin-left: 4px; }
     .item.done .item-name { color: #bbb; text-decoration: line-through; }
     
     /* 仓库标签 */
@@ -181,6 +183,21 @@
       font-size: 12px;
       cursor: pointer;
       border: none;
+    }
+    
+    /* 已补按钮 */
+    .item-filled-btn {
+      background: #fff3e0;
+      color: #ff9800;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid #ff9800;
+    }
+    .item-filled-btn.filled {
+      background: #ff9800;
+      color: white;
     }
     
     .empty { text-align: center; padding: 40px 20px; color: #999; }
@@ -297,11 +314,15 @@
       <div class="stat-num done" id="statDone">-</div>
       <div class="stat-label">已采购</div>
     </div>
+    <div class="stat">
+      <div class="stat-num need-form" id="statNeedForm">-</div>
+      <div class="stat-label">需补单</div>
+    </div>
   </div>
   
   <div class="tabs">
     <button class="tab active" data-filter="pending">待采购</button>
-    <button class="tab" data-filter="done">已采购</button>
+    <button class="tab need-form" data-filter="needForm">需补单</button>
     <button class="tab" data-filter="all">全部</button>
   </div>
   
@@ -325,20 +346,20 @@
   <!-- 添加采购项弹窗 -->
   <div class="modal" id="addModal">
     <div class="modal-content">
-      <div class="modal-title">➕ 添加采购项</div>
+      <div class="modal-title">➕ 添加采购项（需补单）</div>
       <div class="warehouse-options">
         <button class="wh-btn sgb" onclick="selectAddWarehouse('石膏板库', this)">石膏板库</button>
         <button class="wh-btn lgk" onclick="selectAddWarehouse('龙骨库', this)">龙骨库</button>
         <button class="wh-btn other" onclick="selectAddWarehouse('其他', this)">其他</button>
       </div>
-      <input type="text" class="modal-input" id="addName" placeholder="名称 *">
-      <input type="text" class="modal-input" id="addSpec" placeholder="规格（可选）">
+      <input type="text" class="modal-input" id="addName" placeholder="材料名称 *">
+      <input type="text" class="modal-input" id="addSpec" placeholder="规格/型号（可选）">
       <div class="modal-row">
         <input type="number" class="modal-input" id="addQuantity" placeholder="数量 *" min="1">
         <input type="text" class="modal-input" id="addUnit" placeholder="单位" style="max-width:80px;">
       </div>
       <div style="background:#fff3e0; color:#ff9800; padding:8px; border-radius:6px; font-size:12px; text-align:center;">
-        ⚠️ 手机添加需补采购申请
+        ⚠️ 此项需要补采购申请单
       </div>
       <div class="modal-buttons">
         <button class="modal-btn cancel" onclick="closeAddModal()">取消</button>
@@ -348,14 +369,13 @@
   </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbykCNfHWL5V4X3lEKwGoCbqJqWdsmZLlI5qtC5tuJ_wwzIQrJMTf6AbpDe79xcFNaluGA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx2mryhFzbLZTFAK9O-89Ge4FK26xBtYVq6KPK53OD88ak67oXdtHfv5uzGAdIQjN6ccg/exec';
 
 let allItems = [];
 let currentFilter = 'pending';
 let editingItem = null;
 let addWarehouse = '';
 
-// 批次颜色循环
 const BATCH_COLORS = 6;
 
 document.querySelectorAll('.tab').forEach(tab => {
@@ -390,23 +410,44 @@ async function loadData() {
 }
 
 function updateStats() {
-  const pending = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购').length;
+  const pending = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购' && !isNeedForm(i)).length;
   const done = allItems.filter(i => i.status === '已完成' || i.status === '已采购').length;
+  const needForm = allItems.filter(i => isNeedForm(i) && i.status !== '已完成' && i.status !== '已采购').length;
   document.getElementById('statPending').textContent = pending;
   document.getElementById('statDone').textContent = done;
+  document.getElementById('statNeedForm').textContent = needForm;
+}
+
+function isNeedForm(item) {
+  return item.remark && item.remark.includes('需补采购申请');
+}
+
+function isFormFilled(item) {
+  return item.remark && item.remark.includes('已补');
 }
 
 function renderList() {
   let items = allItems;
+  
   if (currentFilter === 'pending') {
-    items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购');
-  } else if (currentFilter === 'done') {
-    items = allItems.filter(i => i.status === '已完成' || i.status === '已采购');
+    items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购' && !isNeedForm(i));
+  } else if (currentFilter === 'needForm') {
+    items = allItems.filter(i => isNeedForm(i) && i.status !== '已完成' && i.status !== '已采购');
   }
   
   if (!items.length) {
-    const messages = { 'pending': '全部采购完成！🎉', 'done': '还没有已采购的项目', 'all': '还没有任何采购项目' };
+    const messages = { 
+      'pending': '全部采购完成！🎉', 
+      'needForm': '没有需要补单的项目',
+      'all': '还没有任何采购项目' 
+    };
     document.getElementById('list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><p>${messages[currentFilter]}</p></div>`;
+    return;
+  }
+  
+  // 如果是"需补单"页面，不按批次分组
+  if (currentFilter === 'needForm') {
+    document.getElementById('list').innerHTML = items.map(item => renderItem(item, true)).join('');
     return;
   }
   
@@ -432,7 +473,7 @@ function renderList() {
     html += `<div class="batch-header"><span>📦 批次 ${idx + 1}</span><span>${batchDate}</span></div>`;
     
     batchItems.forEach(item => {
-      html += renderItem(item);
+      html += renderItem(item, false);
     });
     
     html += `</div>`;
@@ -441,10 +482,10 @@ function renderList() {
   document.getElementById('list').innerHTML = html;
 }
 
-function renderItem(item) {
+function renderItem(item, showFilledBtn) {
   const isDone = item.status === '已完成' || item.status === '已采购';
   const statusClass = isDone ? 'done' : 'pending';
-  const isManual = item.remark && item.remark.includes('需补采购申请');
+  const isManual = isNeedForm(item);
   const itemClass = isDone ? 'item done' : (isManual ? 'item manual' : 'item');
   const icon = isDone ? '✓' : '';
   const purchased = parseInt(item.purchased) || 0;
@@ -461,9 +502,17 @@ function renderItem(item) {
     progressHtml = `<div class="item-progress">${purchased}/${total}<div class="progress-bar"><div class="progress-fill" style="width:${percent}%"></div></div></div>`;
   }
   
+  // 需补单标签
   let tagHtml = '';
-  if (isManual && !isDone) {
-    tagHtml = `<div class="item-tag">需补采购申请</div>`;
+  if (isManual && !isDone && !showFilledBtn) {
+    tagHtml = `<div class="item-tag">需补单</div>`;
+  }
+  
+  // 已补按钮（只在需补单页面显示）
+  let filledBtnHtml = '';
+  if (showFilledBtn && isManual) {
+    const filled = isFormFilled(item);
+    filledBtnHtml = `<button class="item-filled-btn ${filled ? 'filled' : ''}" onclick="toggleFilled('${item.id}', ${filled})">${filled ? '已补' : '未补'}</button>`;
   }
   
   return `
@@ -471,16 +520,17 @@ function renderItem(item) {
       <div class="checkbox ${statusClass}" onclick="toggleStatus('${item.id}', ${isDone})">${icon}</div>
       <div class="item-content">
         <div class="item-name">
+          ${whTag}
           ${item.name || '-'}
           <span class="item-spec">${item.spec || ''}</span>
-          ${whTag}
         </div>
         ${tagHtml}
         ${progressHtml}
       </div>
       <div class="item-qty-section">
         <div class="item-total">${total}${item.unit || ''}</div>
-        ${!isDone ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>` : ''}
+        ${!isDone && !showFilledBtn ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>` : ''}
+        ${filledBtnHtml}
       </div>
     </div>
   `;
@@ -497,6 +547,29 @@ async function toggleStatus(id, currentlyDone) {
   }
   try {
     await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}&purchased=${item?.purchased || 0}`);
+  } catch (e) { loadData(); }
+}
+
+async function toggleFilled(id, currentlyFilled) {
+  const item = allItems.find(i => String(i.id) === String(id));
+  if (!item) return;
+  
+  let newRemark = item.remark || '';
+  if (currentlyFilled) {
+    // 取消已补
+    newRemark = newRemark.replace('已补', '').trim();
+  } else {
+    // 标记已补
+    if (!newRemark.includes('已补')) {
+      newRemark = newRemark + ' 已补';
+    }
+  }
+  
+  item.remark = newRemark;
+  renderList();
+  
+  try {
+    await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&remark=${encodeURIComponent(newRemark)}`);
   } catch (e) { loadData(); }
 }
 
@@ -589,5 +662,3 @@ setInterval(loadData, 30000);
 </script>
 </body>
 </html>
-
-
