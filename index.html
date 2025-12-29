@@ -38,9 +38,9 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.08); 
     }
     .stat { text-align: center; flex: 1; }
-    .stat-num { font-size: 32px; font-weight: 700; color: #4285f4; }
-    .stat-num.warning { color: #fbbc04; }
-    .stat-num.success { color: #34a853; }
+    .stat-num { font-size: 32px; font-weight: 700; }
+    .stat-num.pending { color: #ea4335; }
+    .stat-num.done { color: #34a853; }
     .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
     
     .tabs { 
@@ -95,8 +95,7 @@
       flex-shrink: 0;
       transition: all 0.2s;
     }
-    .checkbox.pending { border-color: #fbbc04; background: #fffde7; }
-    .checkbox.processing { border-color: #4285f4; background: #e3f2fd; color: #4285f4; }
+    .checkbox.pending { border-color: #ea4335; background: #fff; }
     .checkbox.done { border-color: #34a853; background: #34a853; color: white; }
     
     .item-content { flex: 1; min-width: 0; }
@@ -162,13 +161,6 @@
       to { transform: rotate(360deg); }
     }
     
-    .status-hint {
-      text-align: center;
-      padding: 10px;
-      font-size: 12px;
-      color: #999;
-    }
-    
     .loading-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -192,31 +184,25 @@
 
   <div class="header">
     <h1>📦 采购待办清单</h1>
-    <p>点击项目切换状态</p>
+    <p>点击打勾表示已采购</p>
   </div>
   
   <div class="stats">
     <div class="stat">
-      <div class="stat-num warning" id="statPending">-</div>
+      <div class="stat-num pending" id="statPending">-</div>
       <div class="stat-label">待采购</div>
     </div>
     <div class="stat">
-      <div class="stat-num" id="statProcessing">-</div>
-      <div class="stat-label">采购中</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num success" id="statDone">-</div>
-      <div class="stat-label">已完成</div>
+      <div class="stat-num done" id="statDone">-</div>
+      <div class="stat-label">已采购</div>
     </div>
   </div>
   
   <div class="tabs">
     <button class="tab active" data-filter="pending">待采购</button>
-    <button class="tab" data-filter="processing">采购中</button>
+    <button class="tab" data-filter="done">已采购</button>
     <button class="tab" data-filter="all">全部</button>
   </div>
-  
-  <div class="status-hint">💡 点击项目切换: 待采购 → 采购中 → 已完成</div>
   
   <div class="list" id="list"></div>
   
@@ -251,9 +237,7 @@ async function loadData() {
     
     if (result.success) {
       allItems = result.items || [];
-      document.getElementById('statPending').textContent = result.stats?.pending || 0;
-      document.getElementById('statProcessing').textContent = result.stats?.processing || 0;
-      document.getElementById('statDone').textContent = result.stats?.done || 0;
+      updateStats();
       renderList();
     } else {
       showEmpty('加载失败', '❌');
@@ -267,20 +251,27 @@ async function loadData() {
   }
 }
 
+function updateStats() {
+  const pending = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购').length;
+  const done = allItems.filter(i => i.status === '已完成' || i.status === '已采购').length;
+  document.getElementById('statPending').textContent = pending;
+  document.getElementById('statDone').textContent = done;
+}
+
 // 渲染列表
 function renderList() {
   let items = allItems;
   
   if (currentFilter === 'pending') {
-    items = allItems.filter(i => i.status === '待采购');
-  } else if (currentFilter === 'processing') {
-    items = allItems.filter(i => i.status === '采购中');
+    items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购');
+  } else if (currentFilter === 'done') {
+    items = allItems.filter(i => i.status === '已完成' || i.status === '已采购');
   }
   
   if (!items.length) {
     const messages = {
-      'pending': '没有待采购的项目 🎉',
-      'processing': '没有采购中的项目',
+      'pending': '全部采购完成！🎉',
+      'done': '还没有已采购的项目',
       'all': '还没有任何采购项目'
     };
     showEmpty(messages[currentFilter], '📋');
@@ -288,12 +279,13 @@ function renderList() {
   }
   
   document.getElementById('list').innerHTML = items.map(item => {
-    const statusClass = item.status === '已完成' ? 'done' : item.status === '采购中' ? 'processing' : 'pending';
-    const icon = item.status === '已完成' ? '✓' : item.status === '采购中' ? '➜' : '';
-    const itemClass = item.status === '已完成' ? 'item done' : 'item';
+    const isDone = item.status === '已完成' || item.status === '已采购';
+    const statusClass = isDone ? 'done' : 'pending';
+    const itemClass = isDone ? 'item done' : 'item';
+    const icon = isDone ? '✓' : '';
     
     return `
-      <div class="${itemClass}" onclick="cycleStatus('${item.id}', '${item.status}')">
+      <div class="${itemClass}" onclick="toggleStatus('${item.id}', ${isDone})">
         <div class="checkbox ${statusClass}">${icon}</div>
         <div class="item-content">
           <div class="item-name">${item.name || '-'}</div>
@@ -314,14 +306,9 @@ function showEmpty(message, icon) {
   `;
 }
 
-// 切换状态
-async function cycleStatus(id, currentStatus) {
-  const statusFlow = { 
-    '待采购': '采购中', 
-    '采购中': '已完成', 
-    '已完成': '待采购' 
-  };
-  const newStatus = statusFlow[currentStatus] || '待采购';
+// 切换状态：待采购 ↔ 已采购
+async function toggleStatus(id, currentlyDone) {
+  const newStatus = currentlyDone ? '待采购' : '已完成';
   
   // 先本地更新（快速响应）
   const item = allItems.find(i => String(i.id) === String(id));
@@ -336,15 +323,8 @@ async function cycleStatus(id, currentStatus) {
     await fetch(`${API_URL}?action=update&id=${encodeURIComponent(id)}&status=${encodeURIComponent(newStatus)}`);
   } catch (error) {
     console.error('更新失败:', error);
-    // 失败时重新加载
     loadData();
   }
-}
-
-function updateStats() {
-  document.getElementById('statPending').textContent = allItems.filter(i => i.status === '待采购').length;
-  document.getElementById('statProcessing').textContent = allItems.filter(i => i.status === '采购中').length;
-  document.getElementById('statDone').textContent = allItems.filter(i => i.status === '已完成').length;
 }
 
 // 初始加载
