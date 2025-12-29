@@ -124,6 +124,16 @@
       flex-shrink: 0;
     }
     
+    .item-total { 
+      background: #f0f0f0; 
+      color: #666; 
+      padding: 4px 8px; 
+      border-radius: 12px; 
+      font-size: 12px; 
+      white-space: nowrap;
+    }
+    .item.done .item-total { color: #bbb; }
+    
     .item-purchased {
       background: #e8f5e9;
       color: #2e7d32;
@@ -134,16 +144,6 @@
       border: none;
     }
     .item-purchased:active { background: #c8e6c9; }
-    
-    .item-total { 
-      background: #f0f0f0; 
-      color: #666; 
-      padding: 4px 8px; 
-      border-radius: 12px; 
-      font-size: 12px; 
-      white-space: nowrap;
-    }
-    .item.done .item-total { color: #bbb; }
     
     .empty { 
       text-align: center; 
@@ -365,8 +365,8 @@ function renderList() {
           ${progressHtml}
         </div>
         <div class="item-qty-section">
-          ${!isDone ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>` : ''}
           <div class="item-total">${total}${item.unit || ''}</div>
+          ${!isDone ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>` : ''}
         </div>
       </div>
     `;
