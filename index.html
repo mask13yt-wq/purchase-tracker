@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>采购待办</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: -apple-system, sans-serif; 
+      background: #f0f2f5; 
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #4285f4, #34a853);
+      color: white;
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header h1 { font-size: 20px; }
+    
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      padding: 15px;
+      background: white;
+      margin: 10px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .stat { text-align: center; }
+    .stat-num { 
+      font-size: 28px; 
+      font-weight: bold; 
+      color: #4285f4; 
+    }
+    .stat-label { font-size: 12px; color: #666; }
+    
+    .tabs {
+      display: flex;
+      padding: 10px;
+      gap: 10px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+    }
+    .tab.active { background: #4285f4; color: white; }
+    
+    .list { padding: 0 10px 100px; }
+    
+    .item {
+      background: white;
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .item-checkbox {
+      width: 24px;
+      height: 24px;
+      border: 2px solid #4285f4;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .item-checkbox.checked {
+      background: #34a853;
+      border-color: #34a853;
+      color: white;
+    }
+    
+    .item-content { flex: 1; }
+    .item-name { font-weight: 600; font-size: 16px; }
+    .item-detail { 
+      font-size: 13px; 
+      color: #666; 
+      margin-top: 4px;
+    }
+    
+    .item-qty {
+      background: #e8f0fe;
+      color: #4285f4;
+      padding: 4px 10px;
+      border-radius: 15px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    
+    .status-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 15px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-processing { background: #cce5ff; color: #004085; }
+    .status-done { background: #d4edda; color: #155724; }
+    
+    .config-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #4285f4;
+      color: white;
+      border: none;
+      font-size: 20px;
+      box-shadow: 0 4px 15px rgba(66,133,244,0.4);
+      cursor: pointer;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .modal button {
+      width: 100%;
+      padding: 12px;
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+    .empty-icon { font-size: 60px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📦 采购待办清单</h1>
+  </div>
+  
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num" id="statPending">-</div>
+      <div class="stat-label">待采购</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statProcessing">-</div>
+      <div class="stat-label">采购中</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" id="statDone">-</div>
+      <div class="stat-label">已完成</div>
+    </div>
+  </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-filter="pending">待采购</button>
+    <button class="tab" data-filter="processing">采购中</button>
+    <button class="tab" data-filter="all">全部</button>
+  </div>
+  
+  <div class="list" id="list">
+    <div class="loading">加载中...</div>
+  </div>
+  
+  <button class="config-btn" onclick="showConfig()">⚙️</button>
+  
+  <div class="modal" id="configModal">
+    <div class="modal-content">
+      <h3>设置</h3>
+      <input type="text" id="configUrl" placeholder="Google Apps Script URL">
+      <button onclick="saveConfig()">保存并刷新</button>
+    </div>
+  </div>
+
+<script>
+let allItems = [];
+let currentFilter = 'pending';
+
+// 获取保存的URL
+function getApiUrl() {
+  return localStorage.getItem('purchaseApiUrl') || '';
+}
+
+function showConfig() {
+  document.getElementById('configUrl').value = getApiUrl();
+  document.getElementById('configModal').classList.add('show');
+}
+
+function saveConfig() {
+  const url = document.getElementById('configUrl').value.trim();
+  localStorage.setItem('purchaseApiUrl', url);
+  document.getElementById('configModal').classList.remove('show');
+  loadData();
+}
+
+// 点击空白关闭弹窗
+document.getElementById('configModal').addEventListener('click', (e) => {
+  if (e.target.id === 'configModal') {
+    document.getElementById('configModal').classList.remove('show');
+  }
+});
+
+// Tab切换
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentFilter = tab.dataset.filter;
+    renderList();
+  });
+});
+
+// 加载数据
+async function loadData() {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
+    document.getElementById('list').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">⚙️</div>
+        <p>请先点击右下角设置 API URL</p>
+      </div>
+    `;
+    return;
+  }
+  
+  document.getElementById('list').innerHTML = '<div class="loading">加载中...</div>';
+  
+  try {
+    const response = await fetch(`${apiUrl}?action=list`);
+    const result = await response.json();
+    
+    if (result.success) {
+      allItems = result.items;
+      
+      // 更新统计
+      document.getElementById('statPending').textContent = result.stats.pending;
+      document.getElementById('statProcessing').textContent = result.stats.processing;
+      document.getElementById('statDone').textContent = result.stats.done;
+      
+      renderList();
+    }
+  } catch (error) {
+    document.getElementById('list').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">❌</div>
+        <p>加载失败，请检查网络和URL设置</p>
+      </div>
+    `;
+  }
+}
+
+// 渲染列表
+function renderList() {
+  let items = allItems;
+  
+  if (currentFilter === 'pending') {
+    items = allItems.filter(i => i.status === '待采购');
+  } else if (currentFilter === 'processing') {
+    items = allItems.filter(i => i.status === '采购中');
+  }
+  
+  if (items.length === 0) {
+    document.getElementById('list').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">✨</div>
+        <p>暂无数据</p>
+      </div>
+    `;
+    return;
+  }
+  
+  document.getElementById('list').innerHTML = items.map(item => `
+    <div class="item">
+      <div class="item-checkbox ${item.status === '已完成' ? 'checked' : ''}" 
+           onclick="cycleStatus('${item.id}', '${item.status}')">
+        ${item.status === '已完成' ? '✓' : ''}
+      </div>
+      <div class="item-content">
+        <div class="item-name">${item.name}</div>
+        <div class="item-detail">${item.spec}</div>
+      </div>
+      <div class="item-qty">${item.quantity} ${item.unit}</div>
+    </div>
+  `).join('');
+}
+
+// 循环切换状态
+async function cycleStatus(id, currentStatus) {
+  const statusFlow = {
+    '待采购': '采购中',
+    '采购中': '已完成',
+    '已完成': '待采购'
+  };
+  const newStatus = statusFlow[currentStatus];
+  
+  const apiUrl = getApiUrl();
+  try {
+    await fetch(`${apiUrl}?action=update&id=${id}&status=${encodeURIComponent(newStatus)}`);
+    loadData(); // 刷新
+  } catch (error) {
+    alert('更新失败');
+  }
+}
+
+// 初始加载
+loadData();
+</script>
+</body>
+</html>
