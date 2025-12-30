@@ -60,8 +60,8 @@
     
     /* 批次分组 */
     .batch-group {
-      margin: 10px 0;
-      border-radius: 12px;
+      margin: 8px 0;
+      border-radius: 10px;
       overflow: hidden;
     }
     .batch-group.color-0 { border: 2px solid #bbdefb; background: #e3f2fd; }
@@ -72,8 +72,8 @@
     .batch-group.color-5 { border: 2px solid #b2dfdb; background: #e0f2f1; }
     
     .batch-header {
-      padding: 6px 12px;
-      font-size: 11px;
+      padding: 4px 10px;
+      font-size: 10px;
       color: #666;
       display: flex;
       justify-content: space-between;
@@ -81,25 +81,25 @@
     
     .item { 
       background: white; 
-      margin: 4px 8px;
-      padding: 10px 12px; 
+      margin: 3px 6px;
+      padding: 8px 10px; 
       border-radius: 8px; 
       display: flex; 
       align-items: center; 
-      gap: 10px;
+      gap: 8px;
     }
-    .item:last-child { margin-bottom: 8px; }
+    .item:last-child { margin-bottom: 6px; }
     .item.manual { border-left: 3px solid #ff9800; }
     
     .checkbox { 
-      width: 26px; 
-      height: 26px; 
+      width: 24px; 
+      height: 24px; 
       border: 2px solid #ddd; 
       border-radius: 50%; 
       display: flex; 
       align-items: center; 
       justify-content: center; 
-      font-size: 14px; 
+      font-size: 12px; 
       flex-shrink: 0;
       cursor: pointer;
     }
@@ -115,15 +115,16 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 4px;
+      line-height: 1.3;
     }
-    .item-spec { color: #999; margin-left: 4px; }
+    .item-spec { color: #999; }
     .item.done .item-name { color: #bbb; text-decoration: line-through; }
     
     /* 仓库标签 */
     .warehouse-tag {
       font-size: 9px;
-      padding: 2px 5px;
-      border-radius: 8px;
+      padding: 1px 4px;
+      border-radius: 6px;
       color: white;
       flex-shrink: 0;
     }
@@ -131,23 +132,23 @@
     .warehouse-tag.lgk { background: #c62828; }
     .warehouse-tag.other { background: #757575; }
     
-    .item-tag {
-      font-size: 10px;
+    /* 需补单标签 - 放在名称后面 */
+    .need-form-tag {
+      font-size: 9px;
       color: #ff9800;
       background: #fff3e0;
-      padding: 2px 6px;
-      border-radius: 8px;
-      margin-top: 3px;
-      display: inline-block;
+      padding: 1px 4px;
+      border-radius: 6px;
+      flex-shrink: 0;
     }
     
     .item-progress {
-      font-size: 11px;
+      font-size: 10px;
       color: #888;
-      margin-top: 3px;
+      margin-top: 2px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
     }
     .progress-bar {
       flex: 1;
@@ -155,32 +156,32 @@
       background: #eee;
       border-radius: 2px;
       overflow: hidden;
-      max-width: 80px;
+      max-width: 60px;
     }
     .progress-fill { height: 100%; background: #34a853; }
     
     .item-qty-section {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
       flex-shrink: 0;
     }
     
     .item-total { 
       background: #f0f0f0; 
       color: #666; 
-      padding: 4px 8px; 
-      border-radius: 12px; 
-      font-size: 12px; 
+      padding: 3px 6px; 
+      border-radius: 10px; 
+      font-size: 11px; 
     }
     .item.done .item-total { color: #bbb; }
     
     .item-purchased {
       background: #e8f5e9;
       color: #2e7d32;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: 10px;
+      font-size: 11px;
       cursor: pointer;
       border: none;
     }
@@ -189,9 +190,9 @@
     .item-filled-btn {
       background: #fff3e0;
       color: #ff9800;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: 10px;
+      font-size: 11px;
       cursor: pointer;
       border: 1px solid #ff9800;
     }
@@ -410,9 +411,10 @@ async function loadData() {
 }
 
 function updateStats() {
-  const pending = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购' && !isNeedForm(i)).length;
+  const pending = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购').length;
   const done = allItems.filter(i => i.status === '已完成' || i.status === '已采购').length;
-  const needForm = allItems.filter(i => isNeedForm(i) && i.status !== '已完成' && i.status !== '已采购').length;
+  // 需补单：需要补采购申请且还没点"已补"的
+  const needForm = allItems.filter(i => isNeedForm(i) && !isFormFilled(i)).length;
   document.getElementById('statPending').textContent = pending;
   document.getElementById('statDone').textContent = done;
   document.getElementById('statNeedForm').textContent = needForm;
@@ -430,15 +432,17 @@ function renderList() {
   let items = allItems;
   
   if (currentFilter === 'pending') {
+    // 待采购：显示所有未完成的项目
     items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购');
   } else if (currentFilter === 'needForm') {
-    items = allItems.filter(i => isNeedForm(i) && i.status !== '已完成' && i.status !== '已采购');
+    // 需补单：需要补采购申请且还没点"已补"的（不管是否已采购）
+    items = allItems.filter(i => isNeedForm(i) && !isFormFilled(i));
   }
   
   if (!items.length) {
     const messages = { 
       'pending': '全部采购完成！🎉', 
-      'needForm': '没有需要补单的项目',
+      'needForm': '没有需要补单的项目 ✅',
       'all': '还没有任何采购项目' 
     };
     document.getElementById('list').innerHTML = `<div class="empty"><div class="empty-icon">📋</div><p>${messages[currentFilter]}</p></div>`;
@@ -497,22 +501,26 @@ function renderItem(item, showFilledBtn) {
   const whClass = wh === '石膏板库' ? 'sgb' : wh === '龙骨库' ? 'lgk' : 'other';
   const whTag = wh ? `<span class="warehouse-tag ${whClass}">${wh.replace('库','')}</span>` : '';
   
+  // 需补单标签（放在名称后面，只在待采购页面显示）
+  const needFormTag = (isManual && !showFilledBtn) ? `<span class="need-form-tag">需补单</span>` : '';
+  
+  // 进度条
   let progressHtml = '';
   if (!isDone && purchased > 0 && total > 0) {
     progressHtml = `<div class="item-progress">${purchased}/${total}<div class="progress-bar"><div class="progress-fill" style="width:${percent}%"></div></div></div>`;
-  }
-  
-  // 需补单标签
-  let tagHtml = '';
-  if (isManual && !isDone && !showFilledBtn) {
-    tagHtml = `<div class="item-tag">需补单</div>`;
   }
   
   // 已补按钮（只在需补单页面显示）
   let filledBtnHtml = '';
   if (showFilledBtn && isManual) {
     const filled = isFormFilled(item);
-    filledBtnHtml = `<button class="item-filled-btn ${filled ? 'filled' : ''}" onclick="toggleFilled('${item.id}', ${filled})">${filled ? '已补' : '未补'}</button>`;
+    filledBtnHtml = `<button class="item-filled-btn ${filled ? 'filled' : ''}" onclick="event.stopPropagation(); toggleFilled('${item.id}', ${filled})">${filled ? '已补' : '未补'}</button>`;
+  }
+  
+  // 采购按钮（在需补单页面也显示，方便操作）
+  let purchaseBtnHtml = '';
+  if (!isDone) {
+    purchaseBtnHtml = `<button class="item-purchased" onclick="event.stopPropagation(); openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>`;
   }
   
   return `
@@ -523,13 +531,13 @@ function renderItem(item, showFilledBtn) {
           ${whTag}
           ${item.name || '-'}
           <span class="item-spec">${item.spec || ''}</span>
+          ${needFormTag}
         </div>
-        ${tagHtml}
         ${progressHtml}
       </div>
       <div class="item-qty-section">
         <div class="item-total">${total}${item.unit || ''}</div>
-        ${!isDone && !showFilledBtn ? `<button class="item-purchased" onclick="openEditModal('${item.id}')">${purchased > 0 ? purchased + '已采' : '+采购'}</button>` : ''}
+        ${purchaseBtnHtml}
         ${filledBtnHtml}
       </div>
     </div>
@@ -557,15 +565,16 @@ async function toggleFilled(id, currentlyFilled) {
   let newRemark = item.remark || '';
   if (currentlyFilled) {
     // 取消已补
-    newRemark = newRemark.replace('已补', '').trim();
+    newRemark = newRemark.replace(' 已补', '').replace('已补', '').trim();
   } else {
     // 标记已补
     if (!newRemark.includes('已补')) {
-      newRemark = newRemark + ' 已补';
+      newRemark = newRemark.trim() + ' 已补';
     }
   }
   
   item.remark = newRemark;
+  updateStats();
   renderList();
   
   try {
@@ -662,5 +671,3 @@ setInterval(loadData, 30000);
 </script>
 </body>
 </html>
-
-
