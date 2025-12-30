@@ -430,7 +430,7 @@ function renderList() {
   let items = allItems;
   
   if (currentFilter === 'pending') {
-    items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购' && !isNeedForm(i));
+    items = allItems.filter(i => i.status !== '已完成' && i.status !== '已采购');
   } else if (currentFilter === 'needForm') {
     items = allItems.filter(i => isNeedForm(i) && i.status !== '已完成' && i.status !== '已采购');
   }
@@ -662,4 +662,5 @@ setInterval(loadData, 30000);
 </script>
 </body>
 </html>
+
 
