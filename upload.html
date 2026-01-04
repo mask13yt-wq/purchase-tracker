@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UPLOADER</title>
+  <title>采购申请上传</title>
   <!-- 网站图标 - 蓝色上传图标 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234285f4'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>↑</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234285f4'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>↑</text></svg>">
@@ -63,10 +63,13 @@
     .result { margin-top: 15px; padding: 12px; border-radius: 8px; text-align: center; }
     .result.success { background: #d4edda; color: #155724; }
     .result.error { background: #f8d7da; color: #721c24; }
+    
+    .nav-link { text-align: center; margin-top: 20px; }
+    .nav-link a { color: #4285f4; text-decoration: none; }
   </style>
 </head>
 <body>
-  <h1>UPLOADER</h1>
+  <h1>📦 UPLOADER</h1>
   
   <div class="warehouse-select">
     <label class="warehouse-label">📍 选择仓库：</label>
@@ -92,17 +95,13 @@
   </div>
   
   <div id="result"></div>
+  
+  <div class="nav-link">
+    <a href="index.html">📱 查看采购待办清单 →</a>
+  </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbyRFRZMllCzz1Vl9BCf2_1FGcbPMz0KjWSoyZhBu6fOxmseiQku39Uh64v41t_7rWbtww/exec';
-
-// ✅ 修正后的 Excel 列名映射
-const COLUMN_MAP = {
-  name: '材料名称',
-  spec: '规格/型号',
-  quantity: '数量',
-  unit: '单位'
-};
+const API_URL = 'https://script.google.com/macros/s/AKfycbykCNfHWL5V4X3lEKwGoCbqJqWdsmZLlI5qtC5tuJ_wwzIQrJMTf6AbpDe79xcFNaluGA/exec';
 
 let parsedData = [];
 let selectedWarehouse = '';
@@ -132,29 +131,48 @@ function handleFile(file) {
     try {
       const workbook = XLSX.read(e.target.result, {type: 'binary'});
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      
+      // 从第9行开始读取（表头在第9行）
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { range: 8 });
       
       console.log('Excel 原始数据:', jsonData);
       
+      // 定义可能的列名（支持中泰双语）
+      const NAME_KEYS = ['材料名称\nชื่อวัสดุ', '材料名称', 'ชื่อวัสดุ', '名称'];
+      const SPEC_KEYS = ['规格/型号\nสเปค/ขนาด', '规格/型号', 'สเปค/ขนาด', '规格'];
+      const UNIT_KEYS = ['单位\nหน่วย', '单位', 'หน่วย'];
+      const QTY_KEYS = ['数量\nจำนวน', '数量', 'จำนวน'];
+      
+      // 查找匹配的列名
+      function findValue(row, keys) {
+        for (const key of keys) {
+          if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+            return row[key];
+          }
+        }
+        return null;
+      }
+      
       parsedData = jsonData.map(row => {
-        const name = row[COLUMN_MAP.name];
-        const spec = row[COLUMN_MAP.spec];
-        const quantity = row[COLUMN_MAP.quantity];
-        const unit = row[COLUMN_MAP.unit];
+        const name = findValue(row, NAME_KEYS);
+        const spec = findValue(row, SPEC_KEYS);
+        const unit = findValue(row, UNIT_KEYS);
+        const quantity = findValue(row, QTY_KEYS);
         
         return {
-          name: name !== undefined && name !== null ? String(name).trim() : '',
-          spec: spec !== undefined && spec !== null ? String(spec).trim() : '',
-          quantity: quantity !== undefined && quantity !== null ? quantity : '',
-          unit: unit !== undefined && unit !== null ? String(unit).trim() : '',
+          name: name !== null ? String(name).trim() : '',
+          spec: spec !== null ? String(spec).trim() : '',
+          unit: unit !== null ? String(unit).trim() : '',
+          quantity: quantity !== null ? quantity : '',
           warehouse: selectedWarehouse
         };
-      }).filter(item => item.name);
+      }).filter(item => item.name && item.quantity);  // 过滤掉没有名称或数量的行
       
       console.log('处理后数据:', parsedData);
       
       showPreview();
     } catch (error) {
+      console.error(error);
       showResult('❌ Excel 解析失败: ' + error.message, 'error');
     }
   };
@@ -166,7 +184,7 @@ function showPreview() {
     document.getElementById('preview').innerHTML = `
       <div class="result error">
         未解析到数据<br>
-        <small>请确认 Excel 表头为：材料名称、规格/型号、单位、数量</small>
+        <small>请确认 Excel 第9行表头为：材料名称、规格/型号、单位、数量</small>
       </div>`;
     return;
   }
@@ -231,6 +249,7 @@ async function uploadData() {
           <p style="font-size:40px; margin:10px 0;">✅</p>
           <p style="color:#155724;">上传成功！</p>
           <button class="btn btn-secondary" onclick="resetUpload()">📁 上传下一个文件</button>
+          <button class="btn btn-primary" onclick="location.href='index.html'" style="margin-top:10px;">📱 查看采购清单</button>
         </div>
       `;
     } else {
