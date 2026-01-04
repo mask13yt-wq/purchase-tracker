@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>采购申请上传</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, sans-serif; }
+    body { max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    h1 { font-size: 20px; color: #333; margin-bottom: 15px; }
+    
+    .warehouse-select { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+    .warehouse-label { font-weight: 600; margin-bottom: 10px; display: block; }
+    .warehouse-options { display: flex; gap: 10px; }
+    .warehouse-btn {
+      flex: 1; padding: 12px 8px; border: 2px solid #ddd; border-radius: 8px;
+      background: white; cursor: pointer; font-size: 13px; text-align: center;
+    }
+    .warehouse-btn.selected { color: white; }
+    .warehouse-btn.sgb { color: #1565c0; }
+    .warehouse-btn.sgb.selected { background: #1565c0; border-color: #1565c0; color: white; }
+    .warehouse-btn.lgk { color: #c62828; }
+    .warehouse-btn.lgk.selected { background: #c62828; border-color: #c62828; color: white; }
+    .warehouse-btn.other { color: #757575; }
+    .warehouse-btn.other.selected { background: #757575; border-color: #757575; color: white; }
+    
+    .upload-area {
+      border: 2px dashed #4285f4; border-radius: 10px; padding: 30px;
+      text-align: center; background: white; cursor: pointer;
+    }
+    .upload-area.disabled { opacity: 0.5; cursor: not-allowed; }
+    .upload-icon { font-size: 40px; }
+    #fileInput { display: none; }
+    
+    .preview-box { background: white; padding: 15px; border-radius: 10px; margin-top: 15px; }
+    .preview-title { font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+    .warehouse-tag { font-size: 11px; padding: 3px 8px; border-radius: 10px; color: white; }
+    .warehouse-tag.sgb { background: #1565c0; }
+    .warehouse-tag.lgk { background: #c62828; }
+    .warehouse-tag.other { background: #757575; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
+    th { background: #4285f4; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .empty-cell { color: #ccc; }
+    
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; margin-top: 10px; }
+    .btn-primary { background: #4285f4; color: white; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    
+    .progress-container { margin-top: 15px; display: none; }
+    .progress-container.show { display: block; }
+    .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #4285f4; width: 0%; transition: width 0.3s; }
+    .progress-text { text-align: center; font-size: 13px; color: #666; margin-top: 8px; }
+    
+    .result { margin-top: 15px; padding: 12px; border-radius: 8px; text-align: center; }
+    .result.success { background: #d4edda; color: #155724; }
+    .result.error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>📦 采购申请上传</h1>
+  
+  <div class="warehouse-select">
+    <label class="warehouse-label">📍 选择仓库：</label>
+    <div class="warehouse-options">
+      <button class="warehouse-btn sgb" onclick="selectWarehouse('石膏板库', this)">石膏板库</button>
+      <button class="warehouse-btn lgk" onclick="selectWarehouse('龙骨库', this)">龙骨库</button>
+      <button class="warehouse-btn other" onclick="selectWarehouse('其他', this)">其他</button>
+    </div>
+  </div>
+  
+  <div class="upload-area disabled" id="dropZone">
+    <div class="upload-icon">📁</div>
+    <p><strong>请先选择仓库</strong></p>
+    <p style="color:#888; font-size:13px;">然后点击选择 Excel 文件</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" disabled>
+  </div>
+  
+  <div id="preview"></div>
+  
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">正在上传...</div>
+  </div>
+  
+  <div id="result"></div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbyRFRZMllCzz1Vl9BCf2_1FGcbPMz0KjWSoyZhBu6fOxmseiQku39Uh64v41t_7rWbtww/exec';
+
+// ✅ 修正后的 Excel 列名映射
+const COLUMN_MAP = {
+  name: '材料名称',
+  spec: '规格/型号',
+  quantity: '数量',
+  unit: '单位'
+};
+
+let parsedData = [];
+let selectedWarehouse = '';
+
+function selectWarehouse(warehouse, btn) {
+  selectedWarehouse = warehouse;
+  document.querySelectorAll('.warehouse-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  dropZone.classList.remove('disabled');
+  dropZone.querySelector('p strong').textContent = '点击选择 Excel 文件';
+  fileInput.disabled = false;
+  dropZone.onclick = () => fileInput.click();
+}
+
+document.getElementById('fileInput').addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+function handleFile(file) {
+  if (!file || !selectedWarehouse) return;
+  document.getElementById('result').innerHTML = '';
+  document.getElementById('progressContainer').classList.remove('show');
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const workbook = XLSX.read(e.target.result, {type: 'binary'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(sheet);
+      
+      console.log('Excel 原始数据:', jsonData);
+      
+      parsedData = jsonData.map(row => {
+        const name = row[COLUMN_MAP.name];
+        const spec = row[COLUMN_MAP.spec];
+        const quantity = row[COLUMN_MAP.quantity];
+        const unit = row[COLUMN_MAP.unit];
+        
+        return {
+          name: name !== undefined && name !== null ? String(name).trim() : '',
+          spec: spec !== undefined && spec !== null ? String(spec).trim() : '',
+          quantity: quantity !== undefined && quantity !== null ? quantity : '',
+          unit: unit !== undefined && unit !== null ? String(unit).trim() : '',
+          warehouse: selectedWarehouse
+        };
+      }).filter(item => item.name);
+      
+      console.log('处理后数据:', parsedData);
+      
+      showPreview();
+    } catch (error) {
+      showResult('❌ Excel 解析失败: ' + error.message, 'error');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function showPreview() {
+  if (!parsedData.length) {
+    document.getElementById('preview').innerHTML = `
+      <div class="result error">
+        未解析到数据<br>
+        <small>请确认 Excel 表头为：材料名称、规格/型号、单位、数量</small>
+      </div>`;
+    return;
+  }
+  
+  const whClass = selectedWarehouse === '石膏板库' ? 'sgb' : selectedWarehouse === '龙骨库' ? 'lgk' : 'other';
+  
+  document.getElementById('preview').innerHTML = `
+    <div class="preview-box">
+      <div class="preview-title">
+        📋 预览 (${parsedData.length} 条)
+        <span class="warehouse-tag ${whClass}">${selectedWarehouse}</span>
+      </div>
+      <table>
+        <tr><th>材料名称</th><th>规格/型号</th><th>数量</th><th>单位</th></tr>
+        ${parsedData.map(item => `
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.spec || '<span class="empty-cell">-</span>'}</td>
+            <td>${item.quantity}</td>
+            <td>${item.unit || '<span class="empty-cell">-</span>'}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <button class="btn btn-primary" onclick="uploadData()">🚀 上传</button>
+    </div>
+  `;
+}
+
+async function uploadData() {
+  const progressContainer = document.getElementById('progressContainer');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  
+  progressContainer.classList.add('show');
+  progressFill.style.width = '30%';
+  progressText.textContent = '正在上传...';
+  
+  const batchId = 'B' + Date.now();
+  const itemsWithBatch = parsedData.map(item => ({ ...item, batchId: batchId }));
+  
+  try {
+    progressFill.style.width = '60%';
+    
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ items: itemsWithBatch })
+    });
+    
+    progressFill.style.width = '90%';
+    progressText.textContent = '正在处理...';
+    
+    const result = await response.json();
+    progressFill.style.width = '100%';
+    
+    if (result.success) {
+      progressText.textContent = '上传完成！';
+      showResult('✅ ' + result.message, 'success');
+      
+      document.getElementById('preview').innerHTML = `
+        <div class="preview-box" style="text-align:center;">
+          <p style="font-size:40px; margin:10px 0;">✅</p>
+          <p style="color:#155724;">上传成功！</p>
+          <button class="btn btn-secondary" onclick="resetUpload()">📁 上传下一个文件</button>
+        </div>
+      `;
+    } else {
+      showResult('❌ 失败: ' + result.error, 'error');
+    }
+  } catch (error) {
+    showResult('❌ 上传出错: ' + error.message, 'error');
+  }
+  
+  setTimeout(() => progressContainer.classList.remove('show'), 2000);
+}
+
+function resetUpload() {
+  parsedData = [];
+  document.getElementById('preview').innerHTML = '';
+  document.getElementById('result').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('progressContainer').classList.remove('show');
+}
+
+function showResult(msg, type) {
+  document.getElementById('result').innerHTML = `<div class="result ${type}">${msg}</div>`;
+}
+</script>
+</body>
+</html>
