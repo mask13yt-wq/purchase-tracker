@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>采购申请上传</title>
-  <!-- 网站图标 - 蓝色上传图标 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234285f4'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>↑</text></svg>">
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%234285f4'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>↑</text></svg>">
   <meta name="theme-color" content="#4285f4">
@@ -69,7 +68,7 @@
   </style>
 </head>
 <body>
-  <h1>📦 UPLOADER</h1>
+  <h1>📦 采购申请上传</h1>
   
   <div class="warehouse-select">
     <label class="warehouse-label">📍 选择仓库：</label>
@@ -121,6 +120,19 @@ function selectWarehouse(warehouse, btn) {
 
 document.getElementById('fileInput').addEventListener('change', (e) => handleFile(e.target.files[0]));
 
+// 查找匹配的列值（支持部分匹配）
+function findColumnValue(row, keywords) {
+  const keys = Object.keys(row);
+  for (const key of keys) {
+    for (const keyword of keywords) {
+      if (key.includes(keyword)) {
+        return row[key];
+      }
+    }
+  }
+  return null;
+}
+
 function handleFile(file) {
   if (!file || !selectedWarehouse) return;
   document.getElementById('result').innerHTML = '';
@@ -132,58 +144,38 @@ function handleFile(file) {
       const workbook = XLSX.read(e.target.result, {type: 'binary'});
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       
-      // 从第9行开始读取（表头在第9行）
+      // 从第9行开始读取
       const jsonData = XLSX.utils.sheet_to_json(sheet, { range: 8 });
       
       console.log('Excel 原始数据:', jsonData);
+      console.log('第一行的列名:', jsonData.length > 0 ? Object.keys(jsonData[0]) : '无数据');
       
-      // 查找匹配的列名（支持中泰双语，支持换行符）
-      function findValue(row, keywords) {
-        for (const key of Object.keys(row)) {
-          for (const keyword of keywords) {
-            if (key.includes(keyword)) {
-              return row[key];
-            }
-          }
-        }
-        return null;
-      }
       // 关键词列表
       const NAME_KEYWORDS = ['材料名称', 'ชื่อวัสดุ', '名称'];
       const SPEC_KEYWORDS = ['规格', 'สเปค', '型号'];
       const UNIT_KEYWORDS = ['单位', 'หน่วย'];
       const QTY_KEYWORDS = ['数量', 'จำนวน'];
       
-      // 查找匹配的列名
-      function findValue(row, keys) {
-        for (const key of keys) {
-          if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
-            return row[key];
-          }
-        }
-        return null;
-      }
-      
       parsedData = jsonData.map(row => {
-          const name = findValue(row, NAME_KEYWORDS);
-          const spec = findValue(row, SPEC_KEYWORDS);
-          const unit = findValue(row, UNIT_KEYWORDS);
-          const quantity = findValue(row, QTY_KEYWORDS);
+        const name = findColumnValue(row, NAME_KEYWORDS);
+        const spec = findColumnValue(row, SPEC_KEYWORDS);
+        const unit = findColumnValue(row, UNIT_KEYWORDS);
+        const quantity = findColumnValue(row, QTY_KEYWORDS);
         
         return {
-          name: name !== null ? String(name).trim() : '',
-          spec: spec !== null ? String(spec).trim() : '',
-          unit: unit !== null ? String(unit).trim() : '',
-          quantity: quantity !== null ? quantity : '',
+          name: name !== null && name !== undefined ? String(name).trim() : '',
+          spec: spec !== null && spec !== undefined ? String(spec).trim() : '',
+          unit: unit !== null && unit !== undefined ? String(unit).trim() : '',
+          quantity: quantity !== null && quantity !== undefined ? quantity : '',
           warehouse: selectedWarehouse
         };
-      }).filter(item => item.name && item.quantity);  // 过滤掉没有名称或数量的行
+      }).filter(item => item.name && item.quantity);
       
       console.log('处理后数据:', parsedData);
       
       showPreview();
     } catch (error) {
-      console.error(error);
+      console.error('解析错误:', error);
       showResult('❌ Excel 解析失败: ' + error.message, 'error');
     }
   };
@@ -194,8 +186,8 @@ function showPreview() {
   if (!parsedData.length) {
     document.getElementById('preview').innerHTML = `
       <div class="result error">
-        未解析到数据<br>
-        <small>请确认 Excel 第9行表头为：材料名称、规格/型号、单位、数量</small>
+        未解析到有效数据<br>
+        <small>请确认 Excel 数据从第10行开始，且有材料名称和数量</small>
       </div>`;
     return;
   }
