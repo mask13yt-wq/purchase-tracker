@@ -137,11 +137,22 @@ function handleFile(file) {
       
       console.log('Excel 原始数据:', jsonData);
       
-      // 定义可能的列名（支持中泰双语）
-      const NAME_KEYS = ['材料名称\nชื่อวัสดุ', '材料名称', 'ชื่อวัสดุ', '名称'];
-      const SPEC_KEYS = ['规格/型号\nสเปค/ขนาด', '规格/型号', 'สเปค/ขนาด', '规格'];
-      const UNIT_KEYS = ['单位\nหน่วย', '单位', 'หน่วย'];
-      const QTY_KEYS = ['数量\nจำนวน', '数量', 'จำนวน'];
+      // 查找匹配的列名（支持中泰双语，支持换行符）
+      function findValue(row, keywords) {
+        for (const key of Object.keys(row)) {
+          for (const keyword of keywords) {
+            if (key.includes(keyword)) {
+              return row[key];
+            }
+          }
+        }
+        return null;
+      }
+      // 关键词列表
+      const NAME_KEYWORDS = ['材料名称', 'ชื่อวัสดุ', '名称'];
+      const SPEC_KEYWORDS = ['规格', 'สเปค', '型号'];
+      const UNIT_KEYWORDS = ['单位', 'หน่วย'];
+      const QTY_KEYWORDS = ['数量', 'จำนวน'];
       
       // 查找匹配的列名
       function findValue(row, keys) {
@@ -154,10 +165,10 @@ function handleFile(file) {
       }
       
       parsedData = jsonData.map(row => {
-        const name = findValue(row, NAME_KEYS);
-        const spec = findValue(row, SPEC_KEYS);
-        const unit = findValue(row, UNIT_KEYS);
-        const quantity = findValue(row, QTY_KEYS);
+          const name = findValue(row, NAME_KEYWORDS);
+          const spec = findValue(row, SPEC_KEYWORDS);
+          const unit = findValue(row, UNIT_KEYWORDS);
+          const quantity = findValue(row, QTY_KEYWORDS);
         
         return {
           name: name !== null ? String(name).trim() : '',
